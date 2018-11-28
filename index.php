@@ -1,20 +1,18 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 24/10/2018
  * Time: 11:43
  */
+
+/**We start the session */
 session_start();
-include('lib/autoloadRoot.php');
-include('lib/tools.php');
+require_once(__DIR__ . '/lib/utilities.php');
 
 $userSession = getSessionUser();
-
-
-
 ?>
-
+<!-- WE simply includes our header and navbar and tells who is connected and his status  -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -38,6 +36,9 @@ if(isset($_GET['logged']) && !empty($userSession))
     <div class="col-12 d-flex flex-column justify-content-center align-items-center pt-5">
         <h1 class="text-center col-12 col-md-8 col-lg-6 display-3 pb-5" >Welcome to the Alzheimer Center Manager</h1>
         <?php
+        /** display the possibilities if we are not logged, logged as an admin or matron so we can see the profile and administrates,
+         * and if we are logged as a user so we can see only the profile
+         */
             if(empty($userSession))
             {
                 ?>
@@ -71,7 +72,7 @@ if(isset($_GET['logged']) && !empty($userSession))
     </div>
 </div>
 
-
+<?php include 'includes/footer.php'?>
 
 <?php include('includes/script.php')?>
 </body>

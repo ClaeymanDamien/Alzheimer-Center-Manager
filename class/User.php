@@ -2,17 +2,17 @@
 
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 24/10/2018
  * Time: 11:47
  */
 
+/** same think as the Item class */
 class User
 {
 
 
     private $id,
-            $email,
             $cellNum,
             $status;
 
@@ -21,11 +21,14 @@ class User
                 $address1,
                 $address2,
                 $postalCode,
+                $email,
                 $password,
                 $passwordConfirmed,
                 $pictureName,
                 $pictureTmpName,
                 $picturePath,
+                $items = [],
+                $medicines = [],
                 $errors = [];
 
 
@@ -74,6 +77,8 @@ class User
      * @param $password
      * @return bool
      */
+
+    /** Function superpassword to be able to modify user and patient */
     public function superPassword($password)
     {
         if($password == self::SUPER_PASSWORD && !empty($password))
@@ -88,6 +93,7 @@ class User
 
     }
 
+    /** Display the object user */
     public function description()
     {
         $output = "Id = ". $this->id ."<br>";
@@ -118,6 +124,27 @@ class User
         }
     }
 
+    public function isValidUpdate()
+    {
+        $valid = true;
+        if(!empty($this->password))
+        {
+            if(!$this->checkSamePassword())
+            {
+                $valid = false;
+            }
+        }
+        if(empty($this->lName) || empty($this->fName) || empty($this->email))
+        {
+            $valid = false;
+        }
+
+        if($valid)
+            return true;
+        else
+            return false;
+    }
+
     public function isValid()
     {
         $valid = true;
@@ -146,7 +173,7 @@ class User
      */
     public function isValidPictureFormat()
     {
-        $allowedExtension = array('png','gif','jpg','jpeg');
+        $allowedExtension = array('png','gif','jpg','jpeg','JPG','PNG','JPEG');
 
         $extension = substr(strrchr($this->pictureName,'.'),1);
 
@@ -285,6 +312,22 @@ class User
         return $this->picturePath;
     }
 
+    /**
+     * @return array
+     */
+    public function getItems()
+    {
+        return $this->items;
+    }
+
+    /**
+     * @return array
+     */
+    public function getMedicines()
+    {
+        return $this->medicines;
+    }
+
     /** Setter */
 
     /**
@@ -419,5 +462,21 @@ class User
     public function setPicturePath($picturePath)
     {
         $this->picturePath = $picturePath;
+    }
+
+    /**
+     * @param array $items
+     */
+    public function setItems($items)
+    {
+        $this->items = $items;
+    }
+
+    /**
+     * @param array $medicines
+     */
+    public function setMedicines($medicines)
+    {
+        $this->medicines = $medicines;
     }
 }

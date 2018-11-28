@@ -1,24 +1,26 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 24/10/2018
  * Time: 11:46
  */
 session_start();
-require 'lib/autoloadRoot.php';
-include('lib/tools.php');
+
+require_once(__DIR__ . '/lib/utilities.php');
 
 $userSession = getSessionUser();
 
+/** redirection */
 if(!empty($userSession))
 {
     header('Location: index.php');
 }
-
-$db = PDOFactory::getMysqlConnexion();
+/** connection to the database */
+$db = PDOConnection::getMysqlConnexion();
 $manager = new UserManagerPDO($db);
 
+/** we check the form */
 if(isset($_POST['submit']))
 {
     $name = $_POST['name'];
@@ -29,6 +31,7 @@ if(isset($_POST['submit']))
 
     $user = $manager->login($name, $surname, $email,$password);
 
+/** if we find the user, we redirect him to another page and create a session user, else we display an alert message */
     if($user)
     {
         $_SESSION['user'] = serialize($user);
@@ -89,11 +92,14 @@ if(isset($_POST['submit']))
         <!-- form footer -->
         <div class="modal-footer d-flex justify-content-center">
             <span>You aren't registered yet?
-                <a href="#" class="text-info">Sign up</a>
+                <a href="signup.php" class="text-info">Sign up</a>
             </span>
         </div>
     </div>
 </div>
+
+<?php include 'includes/footer.php'?>
+
 
 <?php include('includes/script.php')?>
 </body>

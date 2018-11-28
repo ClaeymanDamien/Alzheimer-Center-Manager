@@ -1,11 +1,12 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 06/10/2018
  * Time: 11:36
  */
 
+/** same thing as ItemManagerPDO, it is just SQL queries for both user and patient table as patient inherits of user*/
 class UserManagerPDO
 {
 
@@ -17,6 +18,8 @@ class UserManagerPDO
     {
         $this->db = $db;
     }
+
+    /** We check if the email is already used */
 
     /**
      * @param User $user
@@ -34,6 +37,54 @@ class UserManagerPDO
             return false;
     }
 
+    /** checking by ID */
+    public function ifPatientExists($id)
+    {
+        $req = $this->selectPatient($id);
+
+        if($req->fetch())
+            return true;
+        else
+            return false;
+    }
+
+    public function ifUserExists($id)
+    {
+        $req = $this->selectUser($id);
+
+        if($req->fetch())
+            return true;
+        else
+            return false;
+    }
+
+    /** get the ID for the next of kin */
+
+    /**
+     * @param User $user
+     * @return null
+     */
+    public function getForeignKey(Patient $patient)
+    {
+        $req = $this->db->prepare('SELECT * FROM tbl_user WHERE Email = :email');
+        $req->bindValue(':email',$patient->getEmail());
+        $req->execute();
+
+        if($data = $req->fetch())
+        {
+            if($data['Status'] == 'user')
+                return $data['ID'];
+            else
+                NULL;
+
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
+    /** functions to return data in the table patient order by last name or just one user selected by id or next of kin */
     public function selectAllPatient()
     {
         $req = $this->db->query('SELECT * FROM tbl_patient ORDER BY LName');
@@ -49,14 +100,30 @@ class UserManagerPDO
     }
     
     public function selectForeignPatient($id)
-    {
+    {;
         $req = $this->db->prepare('SELECT * FROM tbl_patient WHERE NextOfKin = :id');
         $req->bindValue(':id',$id);
         $req->execute();
         return $req;
     }
 
+    /** functions to return data in the table user order by last name or just one user selected by id */
+    public function selectAllUser()
+    {
+        $req = $this->db->query('SELECT * FROM tbl_user ORDER BY LName');
+        return $req;
+    }
+
+    public function selectUser($id)
+    {
+        $req = $this->db->prepare('SELECT * FROM tbl_user WHERE ID = :id');
+        $req->bindValue(':id',$id);
+        $req->execute();
+        return $req;
+    }
+
     /**
+     * Register a new user in the table user
      * @param User $user
      */
     public function register(User $user)
@@ -74,9 +141,61 @@ class UserManagerPDO
         $req->bindValue(':userImage', $user->getPicturePath());
         $req->bindValue(':Status', $user->getStatus());
         $req->execute();
+        $req->closeCursor();
+    }
+
+        /** delete a user */
+    public function deleteUser($id)
+    {
+        $req = $this->db->prepare('DELETE FROM tbl_user WHERE ID = :id');
+        $req->bindValue(':id',$id);
+        $req->execute();
+        $req->closeCursor();
+    }
+
+        /** update a user in the table */
+    public function updateUser(User $User)
+    {
+        $req = $this->db->prepare('
+          UPDATE tbl_user
+          SET FName = :FName, LName = :LName, Email = :Email, CellNum= :CellNum,
+              PostalCode = :PostalCode, Address1 = :address1, Address2 = :address2, Status = :Status
+          WHERE ID = :id');
+        $req->bindValue(':id', $User->getId());
+        $req->bindValue(':FName', $User->getFName());
+        $req->bindValue(':LName', $User->getLName());
+        $req->bindValue(':Email', $User->getEmail());
+        $req->bindValue(':CellNum', $User->getCellNum());
+        $req->bindValue(':PostalCode', $User->getPostalCode());
+        $req->bindValue(':address1', $User->getAddress1());
+        $req->bindValue(':address2', $User->getAddress2());
+        $req->bindValue(':Status', $User->getStatus());
+        $req->execute();
+        $req->closeCursor();
+
+        /** If the password has changed, we check and if it is the case, we hash it before sending in the database */
+        if(!empty($User->getPassword()))
+        {
+            $reqPassword = $this->db->prepare('UPDATE tbl_user SET Password = :Password WHERE ID = :ID');
+            $reqPassword->bindValue(':ID', $User->getId());
+            $reqPassword->bindValue(':Password', sha1($User->getPassword()));
+            $reqPassword->execute();
+            $reqPassword->closeCursor();
+        }
+
+        /** If a picture is upload, we get the path */
+        if($User->getPicturePath() != "unknown")
+        {
+            $reqPicture = $this->db->prepare('UPDATE tbl_user SET UserImage = :UserImage WHERE ID = :ID');
+            $reqPicture->bindValue(':ID', $User->getId());
+            $reqPicture->bindValue(':UserImage', $User->getPicturePath());
+            $reqPicture->execute();
+            $reqPicture->closeCursor();
+        }
     }
 
     /**
+     * check the information in order to login, if it is the case, it creates a new user with its information
      * @param $name
      * @param $surname
      * @param $email
@@ -108,6 +227,7 @@ class UserManagerPDO
                 'picturePath' => $userInformation['UserImage'],
                 'status'  => $userInformation['Status'],
             ));
+            $login->closeCursor();
             return $user;
         }
         else
@@ -116,6 +236,26 @@ class UserManagerPDO
         }
     }
 
+    /** add a patient in the table patient */
+    public function addPatient(Patient $Patient)
+    {
+        $req = $this->db->prepare('INSERT INTO tbl_patient(FName, LName, Address1, Address2, PostalCode, RoomNb, GradeClassification, Password, PatientImage, NextOfKin)
+        VALUE (:FName, :LName, :Address1, :Address2, :PostalCode, :RoomNb, :GradeClassification, :Password, :PatientImage, :NextOfKin)');
+        $req->bindValue(':FName', $Patient->getFName());
+        $req->bindValue(':LName', $Patient->getLName());
+        $req->bindValue(':Address1', $Patient->getAddress1());
+        $req->bindValue(':Address2', $Patient->getAddress2());
+        $req->bindValue(':PostalCode', $Patient->getPostalCode());
+        $req->bindValue(':RoomNb', $Patient->getRoomNo());
+        $req->bindValue(':GradeClassification', $Patient->getGradeClassification());
+        $req->bindValue(':Password', sha1($Patient->getPassword()));
+        $req->bindValue(':PatientImage', $Patient->getPicturePath());
+        $req->bindValue(':NextOfKin', $Patient->getNextOfKind());
+        $req->execute();
+        $req->closeCursor();
+    }
+
+    /** update the patient in the table */
     public function updatePatient(Patient $patient)
     {
         $req = $this->db->prepare('
@@ -132,6 +272,8 @@ class UserManagerPDO
         $req->bindValue(':address1', $patient->getAddress1());
         $req->bindValue(':address2', $patient->getAddress2());
         $req->execute();
+        $req->closeCursor();
+
 
         if(!empty($patient->getPassword()))
         {
@@ -139,6 +281,16 @@ class UserManagerPDO
             $reqPassword->bindValue(':ID', $patient->getId());
             $reqPassword->bindValue(':Password', sha1($patient->getPassword()));
             $reqPassword->execute();
+            $reqPassword->closeCursor();
+        }
+
+        if(!empty($patient->getEmail()))
+        {
+            $req = $this->db->prepare('UPDATE tbl_patient SET NextOfKin = :NextOfKin WHERE ID = :ID');
+            $req->bindValue(':ID', $patient->getId());
+            $req->bindValue(':NextOfKin', $patient->getNextOfkin());
+            $req->execute();
+            $req->closeCursor();
         }
 
         if($patient->getPicturePath() != "unknown")
@@ -147,23 +299,26 @@ class UserManagerPDO
             $reqPicture->bindValue(':ID', $patient->getId());
             $reqPicture->bindValue(':patientImage', $patient->getPicturePath());
             $reqPicture->execute();
+            $reqPicture->closeCursor();
         }
     }
 
-    /** SETTER */
-
-    /**
-     * @param $lastInsertId : int
-     */
-    public function setLastInsertId($lastInsertId)
+    public function deletePatient($id)
     {
-        $this->lastInsertId = (int) $lastInsertId;
+        $req = $this->db->prepare('DELETE FROM tbl_patient WHERE ID = :id');
+        $req->bindValue(':id',$id);
+        $req->execute();
+        $req->closeCursor();
     }
+
 
     /** GETTER */
     public function getLastInsertId()
     {
-        return $this->lastInsertId;
+        $req = $this->db->query('SELECT MAX(ID) AS maxId FROM tbl_user');
+        $lastId = $req->fetch();
+        $req->closeCursor();
+        return $lastId['maxId'];
     }
 }
 

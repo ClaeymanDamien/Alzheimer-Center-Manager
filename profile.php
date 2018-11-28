@@ -1,31 +1,35 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 24/10/2018
  * Time: 15:26
  */
 
 session_start();
-include('lib/autoloadRoot.php');
-include('lib/tools.php');
+
+require_once(__DIR__ . '/lib/utilities.php');
 
 $userSession = getSessionUser();
 
-
+/** redirection */
 if(empty($userSession))
 {
    header('Location: index.php');
 }
 
+/** connection to the database */
+$db = PDOConnection::getMysqlConnexion();
+$managerUser = new UserManagerPDO($db);
+$managerItem = new ItemManagerPDO($db);
+$managerMedicine = new MedicineManagerPDO($db);
+$managerLinkTable = new LinkTableManagerPDO($db);
 
-$db = PDOFactory::getMysqlConnexion();
-$manager = new UserManagerPDO($db);
 
-$patients = $manager->selectForeignPatient($userSession->getId());
+$patients = $managerUser->selectForeignPatient($userSession->getId());
 
 ?>
-
+<!-- We includes the header, navbar -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -40,11 +44,16 @@ $patients = $manager->selectForeignPatient($userSession->getId());
         <div class="card col-12 p-0 m-0">
            <div class="profile-img">
                <?php
-               $filename = $userSession->getPicturePath();
+                /** we get the information of the user */
+               $reqUser = $managerUser->selectUser($userSession->getId());
+               $userData = $reqUser->fetch();
+
+                /** if the file exists we display the file, if not we display a default picture */
+               $filename = $userData['UserImage'];
                if(file_exists($filename))
                {
                    ?>
-                   <img src="<?php echo $userSession->getPicturePath()?>" alt="user" class="card-img-top">
+                   <img src="<?php echo $filename?>" alt="user" class="card-img-top">
                    <?php
                }
                else
@@ -55,22 +64,22 @@ $patients = $manager->selectForeignPatient($userSession->getId());
                }
                ?>
            </div>
-
+            <!-- Display the profile -->
             <div class="card-body">
-                <h5 class="card-title"><?php echo $userSession->getFName().' '.$userSession->getLName()?></h5>
+                <h5 class="card-title"><?php echo $userData['FName'].' '.$userData['LName']?></h5>
                 <p class="card-text">
-                    Email = <?php echo $userSession->getEmail() ?> <br>
-                    Cell Num = <?php echo $userSession->getCellNum() ?> <br>
-                    Address 1 = <?php echo $userSession->getAddress1() ?> <br>
-                    Address 2 = <?php echo $userSession->getAddress2() ?> <br>
-                    Postal Code = <?php echo $userSession->getPostalCode() ?> <br>
-                    Status = <?php echo $userSession->getStatus() ?> <br>
+                    Email = <?php echo $userData['Email'] ?> <br>
+                    Cell Num = <?php echo $userData['CellNum'] ?> <br>
+                    Address 1 = <?php echo $userData['Address1'] ?> <br>
+                    Address 2 = <?php echo $userData['Address2'] ?> <br>
+                    Postal Code = <?php echo $userData['PostalCode'] ?> <br>
+                    Status = <?php echo $userData['Status'] ?> <br>
                 </p>
             </div>
         </div>
     </div>
 
-
+    <!-- We get the information of the patient and then display it -->
 <?php
 $i = 1;
 while($data = $patients->fetch())
@@ -108,6 +117,70 @@ while($data = $patients->fetch())
                     Address 2 = <?php echo $data['Address2'] ?> <br>
                     Postal Code = <?php echo $data['PostalCode'] ?> <br>
                 </p>
+                <div>
+                    <h4>Item(s)</h4>
+                    <?php
+                    $itemPatientReq = $managerLinkTable->selectAllItemPatient($data['ID']);
+
+                    while ($itemPatientData = $itemPatientReq->fetch())
+                    {
+                        $itemFound = true;
+                        $itemReq = $managerItem->selectItem($itemPatientData['tbl_Item_ID']);
+                        $itemData = $itemReq->fetch();
+
+                        ?>
+                        <p>
+                            Item Desc: <?php echo $itemData['ItemDesc']?><br>
+                            Quantity: <?php echo $itemPatientData['Quantity']?>
+                        </p>
+                        <?php
+                            if($itemData['ItemPic'] != "unknown")
+                            {
+                                ?>
+                                <img class="img-fluid rounded" src="<?php echo $itemData['ItemPic']?>" alt="itemPic">
+                                <?php
+                            }
+                        ?>
+                        <hr>
+                        <?php
+                    }
+                    if(!isset($itemFound))
+                    {
+                        ?>
+                        <span>No item found</span>
+                        <?php
+                    }
+                    ?>
+                </div>
+                <div class="pt-3">
+                    <h4>Medicine(s)</h4>
+                    <?php
+                    $itemMedicineReq = $managerLinkTable->selectAllItemMedicine($data['ID']);
+
+                    while ($medicinePatientData = $itemMedicineReq->fetch())
+                    {
+                        $medicineFound = true;
+                        $medicineReq = $managerMedicine->selectMedicine($medicinePatientData['tbl_Medicine_ID']);
+                        $medicineData = $medicineReq->fetch();
+
+                        ?>
+                        <p>
+                            Medicine Desc: <?php echo $medicineData['MedDesc']?><br>
+                            Schedule: <?php echo $medicineData['Schedule']?><br>
+                            Dosage: <?php echo $medicinePatientData['Dosage']?><br>
+                        </p>
+                        <hr>
+                        <?php
+
+                    }
+                    if(!isset($medicineFound))
+                    {
+                        ?>
+                        <span>No medicine found</span>
+                        <?php
+                    }
+                    ?>
+                </div>
             </div>
         </div>
     </div>
@@ -118,6 +191,9 @@ while($data = $patients->fetch())
 }
 ?>
 </div>
+
+<?php include 'includes/footer.php'?>
+
 
 <?php include('includes/script.php')?>
 </body>

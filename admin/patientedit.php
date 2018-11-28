@@ -1,17 +1,19 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 26/10/2018
  * Time: 12:27
  */
 
+/** Same thing as itemmanager.php and usermanager.php */
 session_start();
-include('../lib/autoload.php');
-include('../lib/tools.php');
 
-$db = PDOFactory::getMysqlConnexion();
+require_once(__DIR__ . '/../lib/utilities.php');
+
+$db = PDOConnection::getMysqlConnexion();
 $manager = new UserManagerPDO($db);
+$managerLinkTable = new LinkTableManagerPDO($db);
 
 $userSession = getSessionUser();
 
@@ -27,6 +29,28 @@ else
 
 $edit = isset($_GET['edit']) ? $_GET['edit'] : NULL;
 $patient = isset($_GET['patient']) ? $_GET['patient'] : NULL;
+$delete = isset($_GET['delete']) ? $_GET['delete'] : NULL;
+$deleted = isset($_GET['deleted']) ? $_GET['deleted'] : NULL;
+$updated = isset($_GET['updated']) ? $_GET['updated'] : NULL;
+
+if(isset($updated))
+    $errorMessages[] = "Update was done";
+
+if(isset($edit) && $edit != NULL)
+{
+    if(!$manager->ifPatientExists($edit))
+    {
+        header('Location: patientmanager.php?nf');
+    }
+}
+
+if(isset($patient) && $patient != NULL)
+{
+    if(!$manager->ifPatientExists($patient))
+    {
+        header('Location: patientmanager.php?nf');
+    }
+}
 
 if($edit)
 {
@@ -46,6 +70,7 @@ if(isset($_POST['submit']) && isset($patientEditInfo))
         'id' => $edit,
         'fName' => empty($_POST['name']) ? $patientEditInfo['FName'] : $_POST['name'],
         'lName' => empty($_POST['surname']) ? $patientEditInfo['LName'] : $_POST['surname'],
+        'email' => $_POST['nextOfKin'],
         'address1' => empty($_POST['Address1']) ? $patientEditInfo['Address1'] : $_POST['Address1'],
         'address2' => empty($_POST['Address2']) ? $patientEditInfo['Address2'] : $_POST['Address2'],
         'postalCode' => empty($_POST['PostalCode']) ? $patientEditInfo['PostalCode'] : $_POST['PostalCode'],
@@ -74,41 +99,75 @@ if(isset($_POST['submit']) && isset($patientEditInfo))
             $valid = false;
     }
 
-    if(!$patient->superPassword($_POST['superPassword']))
+    if(!empty($patient->getEmail()))
+    {
+        if($foreignKey = $manager->getForeignKey($patient))
+        {
+            $patient->setNextOfKin($foreignKey);
+        }
+        else
+        {
+            $valid = false;
+            $errorMessages[] = "User not found or is not a user";
+        }
+    }
+
+    if(!$userSession->superPassword($_POST['superPassword']))
     {
         $valid = false;
+        $errorMessages[] = "Super Password is invalid";
     }
 
     if($valid)
     {
         $manager->updatePatient($patient);
-        $errorMessages[] = "Update was done";
+        header('Location: patientedit.php?edit='.$patient->getId().'&updated');
     }
     else
     {
         $errors = $patient->getErrors();
+
     }
 
     if(isset($errors))
     {
-        if(in_array(User::NOT_SAME_PASSWORD,$errors)){
+        if(in_array(Patient::NOT_SAME_PASSWORD,$errors)){
             $errorMessages[] = "Is not the same password";
         }
-        if(in_array(User::INVALID_F_NAME,$errors)){
+        if(in_array(Patient::INVALID_F_NAME,$errors)){
             $errorMessages[] = "First name is invalid";
         }
-        if(in_array(User::INVALID_L_NAME,$errors)){
+        if(in_array(Patient::INVALID_L_NAME,$errors)){
             $errorMessages[] = "Last name is invalid";
         }
-        if(in_array(User::INVALID_EXTENSION,$errors)){
+        if(in_array(Patient::INVALID_EXTENSION,$errors)){
             $errorMessages[] = "Picture extension is invalid";
         }
+    }
+}
+
+if(isset($_POST['deleteSubmit']) && isset($delete))
+{
+    $User = new User();
+
+    if($User->superPassword($_POST['superPassword']))
+    {
+        $managerLinkTable->deletePatient($delete);
+        $manager->deletePatient($delete);
+        header('Location: patientedit.php?deleted');
+    }
+    else
+    {
+        $errors = $User->getErrors();
+    }
+
+    if(isset($errors))
+    {
         if(in_array(User::INVALID_SUPER_PASSWORD,$errors)){
             $errorMessages[] = "Super password is invalid";
         }
     }
 }
-
 ?>
 
 <!doctype html>
@@ -121,22 +180,33 @@ if(isset($_POST['submit']) && isset($patientEditInfo))
 
 
 <?php
+if(isset($errorMessages))
+{
+    foreach($errorMessages as $errorMessage)
+    {
+        ?>
+        <div class="alert alert-primary alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            <?php echo "<div>".$errorMessage."</div>"; ?>
+        </div>
+        <?php
+
+    }
+}
+
+if(isset($_GET['deleted']) && !empty($userSession))
+{
+?>
+<div class="alert alert-primary alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    The patient is deleted
+</div>
+
+<?php
+}
 
 if(isset($edit) && !empty($edit))
 {
-    if(isset($errorMessages))
-    {
-        foreach($errorMessages as $errorMessage)
-        {
-            ?>
-            <div class="alert alert-primary alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <?php echo "<div>".$errorMessage."</div>"; ?>
-            </div>
-            <?php
-            
-        }
-    }
     ?>
     <div class="d-flex justify-content-center align-items-center p-0 mt-4 mb-4">
        <div class="col-12 col-md-8 col-lg-6">
@@ -224,8 +294,16 @@ if(isset($edit) && !empty($edit))
             </div>
             
             <div class="form-group">
-                <label for="name">Next of kind: </label>
-                <input class="form-control mb-3" type="email" name="nextOfKind" value="" placeholder="NextOfKind">
+                <?php
+                $userReq = $manager->selectUser($patientEditInfo['NextOfKin']);
+                $userInfo = $userReq->fetch();
+                $userReq->closeCursor();
+                ?>
+                <label for="name">Next of kin: <?php echo $userInfo['FName'].' '.$userInfo['LName'] ?></label>
+                <input class="form-control mb-3" type="email" name="nextOfKin" value="<?php
+                if(isset($_POST['nextOfKin']))
+                    echo $_POST['nextOfKin'];
+                ?>" placeholder="Email of the nextOfkin">
             </div>
             
             <div class="form-group">
@@ -311,11 +389,14 @@ elseif(isset($patient) && !empty($patient))
         </table>
     </div>
     <div class="d-flex mt-3 justify-content-center">
-        <div class="pr-3 col-6 col-md-3 col-lg-2">
+        <div class="pr-3 col-4 col-md-3 col-lg-2">
             <a class="btn btn-primary btn-block" href="patientedit.php">Patient list</a>
         </div>
-        <div class="pl-3 col-6 col-md-3 col-lg-2">
+        <div class="pl-3 col-4 col-md-3 col-lg-2">
             <a class="btn btn-primary btn-block" href="patientedit.php?edit=<?php echo $patientEditInfo['ID']?>">Edit</a>
+        </div>
+        <div class="pl-3 col-4 col-md-3 col-lg-2">
+            <a class="btn btn-primary btn-block" href="patientedit.php?delete=<?php echo $patientEditInfo['ID']?>">Delete</a>
         </div>
     </div>
     <div class="modal fade" id="showFace">
@@ -356,47 +437,78 @@ elseif(isset($patient) && !empty($patient))
     </div>
     <?php
 }
+elseif (isset($delete) && !empty($delete))
+{
+    ?>
+    <div class="col-12 offset-md-2 col-md-8 offset-lg-3 col-lg-6 border mt-5 p-3">
+        <h4 class="p-3">Are you sure you want to delete this patient?</h4>
+        <form action="patientedit.php?delete=<?php echo $delete?>" method="post">
+            <input class="form-control mb-3" type="password" name="superPassword" value="<?php
+            if(isset($_POST['superPassword']))
+                echo $_POST['superPassword'];
+            ?>" placeholder="Super Password">
+            <div class="row">
+                <div class="col-6 pl-3 pr-3">
+                    <input type="submit" name="deleteSubmit" class="btn btn-block btn-outline-primary" value="Yes">
+                </div>
+                <div class="col-6 pl-3 pr-3">
+                    <a href="patientedit.php" class="btn btn-block btn-primary">No</a>
+                </div>
+            </div>
+        </form>
+    </div>
+    <?php
+}
 else
 {
     ?>
+    <div class="d-flex justify-content-center align-items-centermt-4 mb-4 mt-4 p-0">
+        <div class="col-12 col-md-8 col-lg-6">
+            <a href="patientmanager.php" class="p-0 m-0 btn btn-link text-dark">
+                <img class="mr-2" src="../images/styles/ic_arrow_back_black_24dp.png" alt="return_row">patient manager</a>
+        </div>
+    </div>
     <div class="d-flex justify-content-center align-items-center flex-column">
-    <div class="col-12 col-md-8 col-6">
-        <h1 class="display-3 mb-3"> Patient list</h1>
-        <input class="form-control mb-4" id="myInput" type="text" placeholder="Search..">
-        <table class="table table-bordered table-hover">
-        <thead>
-          <tr>
-            <th>Firstname</th>
-            <th>Lastname</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="myTable">
-            <?php
-            $allPatients = $manager->selectAllPatient();
-            while($patientInfo = $allPatients->fetch())
-            {
-                ?>
-
+        <div class="col-12 col-md-8 col-lg-6">
+            <h1 class="display-3 mb-3"> Patient list</h1>
+            <input class="form-control mb-4" id="myInput" type="text" placeholder="Search..">
+            <table class="table table-bordered table-hover">
+            <thead>
               <tr>
-                <td><?php echo $patientInfo['FName'] ?></td>
-                <td><?php echo $patientInfo['LName'] ?></td>
-                <td class="d-flex justify-content-around">
-                    <a href="patientedit.php?patient=<?php echo $patientInfo['ID']?>">Patient information </a>
-                    <a href="patientedit.php?edit=<?php echo $patientInfo['ID']?>">Modifier</a>
-                </td>
+                <th>Firstname</th>
+                <th>Lastname</th>
+                <th></th>
               </tr>
-
+            </thead>
+            <tbody id="myTable">
                 <?php
-            }
-            ?>
-        </tbody>
-      </table>
-   </div>
+                $allPatients = $manager->selectAllPatient();
+                while($patientInfo = $allPatients->fetch())
+                {
+                    ?>
+
+                  <tr>
+                    <td><?php echo $patientInfo['FName'] ?></td>
+                    <td><?php echo $patientInfo['LName'] ?></td>
+                    <td class="d-flex justify-content-around">
+                        <a href="patientedit.php?patient=<?php echo $patientInfo['ID']?>">Patient information </a>
+                        <a href="patientedit.php?edit=<?php echo $patientInfo['ID']?>">Edit</a>
+                        <a href="patientedit.php?delete=<?php echo $patientInfo['ID']?>">Delete</a>
+                    </td>
+                  </tr>
+
+                    <?php
+                }
+                ?>
+            </tbody>
+          </table>
+        </div>
     </div>
     <?php
 }
 ?>
+
+<?php include '../includes/footer.php'?>
 
 <?php include('../includes/script.php')?>
 <script>

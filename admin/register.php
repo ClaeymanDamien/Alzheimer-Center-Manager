@@ -1,16 +1,17 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 25/10/2018
  * Time: 14:26
  */
 
+/** Same thing as itemmanager.php and usermanager.php */
 session_start();
-include('../lib/autoload.php');
-include('../lib/tools.php');
 
-$db = PDOFactory::getMysqlConnexion();
+require_once(__DIR__ . '/../lib/utilities.php');
+
+$db = PDOConnection::getMysqlConnexion();
 $manager = new UserManagerPDO($db);
 
 $userSession = getSessionUser();
@@ -20,10 +21,12 @@ if(empty($userSession) || $userSession->getStatus() != 'admin')
     header('Location: index.php');
 }
 
+
 if(isset($_POST['submit']))
 {
 
     $user = new User(array(
+        'id' => $manager->getLastInsertId()+1,
         'fName' => $_POST['name'],
         'lName' => $_POST['surname'],
         'address1' => $_POST['address1'],
@@ -33,7 +36,7 @@ if(isset($_POST['submit']))
         'cellNum' => $_POST['cellNum'],
         'password' => $_POST['password'],
         'passwordConfirmed' => $_POST['passwordConfirmed'],
-        'status'  => 'user',
+        'status'  => $_POST['status'],
         'pictureName' => $_FILES['picture']['name'],
         'pictureTmpName' => $_FILES['picture']['tmp_name'],
         ));
@@ -121,6 +124,12 @@ if(isset($errorMessages))
     }
 }
 ?>
+<div class="d-flex justify-content-center align-items-center p-0 mt-4 mb-4">
+    <div class="col-12 col-md-8 col-lg-6">
+        <a href="usermanager.php" class="p-0 m-0 btn btn-link text-dark">
+            <img class="mr-2" src="../images/styles/ic_arrow_back_black_24dp.png" alt="return_row">admin</a>
+    </div>
+</div>
 <div class="col-12 offset-md-2 col-md-8 offset-lg-3 col-lg-6 mt-3 mb-3">
     <h1 class="display-3">Create a user</h1>
 </div>
@@ -131,6 +140,14 @@ if(isset($errorMessages))
         <input class="form-control mb-3" type="email" name="email" value="<?php if(isset($_POST['email'])) echo $_POST['email']?>" placeholder="Email">
         <input class="form-control mb-3" type="password" name="password" value="<?php if(isset($_POST['password'])) echo $_POST['password']?>" placeholder="Password">
         <input class="form-control mb-3" type="password" name="passwordConfirmed" value="<?php if(isset($_POST['passwordConfirmed'])) echo $_POST['passwordConfirmed']?>" placeholder="Confirmation password">
+        <div class="form-group">
+            <label for="status">Status :</label>
+            <select class="form-control" name="status" id="status">
+                <option value="user" <?php if(isset($_POST['status']) && $_POST['status'] == "user" ) echo "selected"?>>User</option>
+                <option value="matron" <?php if(isset($_POST['status']) && $_POST['status'] == "matron" ) echo "selected"?>>Matron</option>
+                <option value="admin" <?php if(isset($_POST['status']) && $_POST['status'] == "admin" ) echo "selected"?>>Admin</option>
+            </select>
+        </div>
         <input class="form-control mb-3" type="text" name="address1" value="<?php if(isset($_POST['address1'])) echo $_POST['address1']?>" placeholder="First Address">
         <input class="form-control mb-3" type="text" name="address2" value="<?php if(isset($_POST['address2'])) echo $_POST['address2']?>" placeholder="Second Address">
         <input class="form-control mb-3" type="number" name="postalCode" value="<?php if(isset($_POST['postalCode'])) echo $_POST['postalCode']?>" placeholder="Postal Code">
@@ -144,6 +161,8 @@ if(isset($errorMessages))
     </form>
 </div>
 </body>
+
+<?php include '../includes/footer.php'?>
 
 <?php include('../includes/script.php')?>
 </html>

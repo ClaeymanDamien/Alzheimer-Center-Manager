@@ -1,16 +1,17 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 24/10/2018
  * Time: 15:23
  */
 session_start();
-include('../lib/autoload.php');
-include('../lib/tools.php');
+
+require_once(__DIR__ . '/../lib/utilities.php');
 
 $userSession = getSessionUser();
 
+//Security, check if connected and if it's admin or matron
 if($userSession != NULL)
 {
     if(!($userSession->getStatus() == 'admin' || $userSession->getStatus() == 'matron'))
@@ -30,26 +31,41 @@ else
 <body>
    <?php include('../includes/navbar.php') ?>
     <h1 class="text-center pt-5 display-3">Admin</h1>
-    <div class="d-flex justify-content-center align-items-center flex-column flex-md-row pt-5">
+    <div class="container-fluid row pt-5">
         <?php
-    if($userSession->getStatus() == 'admin')
-    {
+        //admin option if it's an admin or matron
+        if($userSession->getStatus() == 'admin')
+        {
+            ?>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="usermanager.php" class="btn p-md-4 p-3 btn-block btn-primary">User manager</a>
+            </div>
+            <?php
+        }
+        if($userSession->getStatus() == 'admin' || $userSession->getStatus() == 'matron') //admin and matron option
+        {
+            ?>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="patientmanager.php" class="btn p-md-4 p-3 btn-block btn-primary">Patient manager</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="itemmanager.php" class="btn p-md-4 p-3 btn-block btn-primary">Item manager</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="medicinemanager.php" class="btn p-md-4 p-3 btn-block btn-primary">Medicine manager</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="itempatient.php" class="btn p-md-4 p-3 btn-block btn-primary">Item to patient</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 p-3">
+                <a href="medicinepatient.php" class="btn p-md-4 p-3 btn-block btn-primary">Medicine to patient</a>
+            </div>
+            <?php
+        }
         ?>
-            <a href="register.php" class="btn btn-primary col-10 col-md-6 col-lg-3 m-2">Add new user</a>
-        <?php
-    }
-    if($userSession->getStatus() == 'admin' || $userSession->getStatus() == 'matron')
-    {
-        ?>
-        
-            <a href="patientedit.php" class="btn btn-primary col-10 col-md-6 col-lg-3 m-2">View patient</a>
-       
-    
-        <?php
-    }
-    ?>
     </div>
-    
+
+    <?php include '../includes/footer.php'?>
 
     <?php include('../includes/script.php')?>
 </body>

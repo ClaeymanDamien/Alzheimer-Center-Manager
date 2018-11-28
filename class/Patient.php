@@ -2,14 +2,17 @@
 
 /**
  * Created by PhpStorm.
- * User: dclae
+ * User: Damien CLAEYMAN CLEMENT LAMBLING
  * Date: 26/10/2018
  * Time: 13:03
  */
+
+/** same think as the Item class, just patient inherits from User */
+
 class Patient extends User
 {
     private $roomNo,
-            $nextOfKind,
+            $nextOfKin,
             $prescript,
             $gradeClassification;
 
@@ -35,7 +38,7 @@ class Patient extends User
     {
         $output = parent::description();
         $output = $output . "Room number = ".$this->roomNo ."<br>";
-        $output = $output . "NextOfKind = ".$this->nextOfKind ."<br>";
+        $output = $output . "NextOfkin = ".$this->nextOfKin ."<br>";
         $output = $output . "Prescript = " . $this->prescript ."<br>";
         $output = $output . "Grade Classification = " . $this->gradeClassification ."<br>";
         return $output;
@@ -48,6 +51,21 @@ class Patient extends User
             return false;
         else
             return true;
+    }
+
+    public function isValidAdd()
+    {
+        if($this->isValid())
+        {
+            if(empty($this->password))
+                return false;
+            else
+                return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /**
@@ -65,11 +83,6 @@ class Patient extends User
         }
     }
 
-    public function setNextOfKind($nextOfKind)
-    {
-        $this->nextOfKind = $nextOfKind;
-    }
-
     public function setRoomNo($roomNo)
     {
         $this->roomNo = $roomNo;
@@ -80,6 +93,14 @@ class Patient extends User
         $this->prescript = $prescript;
     }
 
+    /**
+     * @param mixed $nextOfKin
+     */
+    public function setNextOfKin($nextOfKin)
+    {
+        $this->nextOfKin = $nextOfKin;
+    }
+
     /** GETTER */
 
     public function getGradeClassification()
@@ -87,9 +108,9 @@ class Patient extends User
         return $this->gradeClassification;
     }
 
-    public function getNextOfKind()
+    public function getNextOfKin()
     {
-        return $this->nextOfKind;
+        return $this->nextOfKin;
     }
 
     public function getPrescript()
